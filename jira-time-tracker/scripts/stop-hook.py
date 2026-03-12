@@ -5,7 +5,7 @@ Claude Code Stop hook: logs each completed turn as a Jira worklog entry.
 Flow per turn:
   - Short user message (≤5 chars, e.g. "1", "yes") → accumulate into carry buffer
   - Substantial message → merge carry + current duration, call claude -p for
-    a ≤20-char Traditional Chinese summary, then log to Jira
+    a ≤30-char Traditional Chinese summary, then log to Jira
 """
 
 import json
@@ -49,8 +49,8 @@ def main():
 
     duration = int(time.time()) - turn.get("start_epoch", int(time.time()))
 
-    # Skip turns shorter than 10 seconds
-    if duration < 10:
+    # Skip turns shorter than 5 seconds
+    if duration < 5:
         sys.exit(0)
 
     cwd    = turn.get("cwd") or hook_input.get("cwd") or os.getcwd()
@@ -83,41 +83,48 @@ def main():
         [sys.executable, LOG_SCRIPT],
         env=env, capture_output=True, text=True,
     )
-    if result.stdout:
-        print(result.stdout, end="")
-    if result.returncode != 0 and result.stderr:
+    if result.returncode == 0 and result.stdout:
+        msg = result.stdout.strip()
+        print(msg)
+    elif result.returncode != 0 and result.stderr:
         print(result.stderr, end="", file=sys.stderr)
 
 
 def generate_description(transcript_path: str, last_msg: str) -> str:
     """
-    Use claude -p to generate a ≤20-char Traditional Chinese summary.
-    If the last message is already ≤20 chars, use it directly (no API call).
+    Use claude -p to generate a ≤30-char Traditional Chinese summary.
+    If the last message is already ≤30 chars, use it directly (no API call).
     """
     messages = extract_recent_user_messages(transcript_path, n=3)
     context  = "\n".join(messages) if messages else last_msg
 
     prompt = (
-        "以下是一段工作對話，請用繁體中文在20字以內總結這輪工作的內容，"
-        "只回覆摘要文字，不要加引號、標點符號或任何解釋。\n\n"
+        "以下是一段工作對話，請用繁體中文在30字以內總結這輪工作的內容，"
+        "只回覆摘要文字，不要加引號或任何解釋。"
+        "務必控制在30字以內，如果內容較多無法精簡，可以用...結尾。\n\n"
         f"{context}"
     )
 
     try:
         env = os.environ.copy()
         env["JIRA_SUMMARIZING"] = "1"  # Prevent recursive hook triggering
+        env.pop("CLAUDECODE", None)     # Allow nested claude -p call
         result = subprocess.run(
             ["claude", "-p", prompt],
             env=env, capture_output=True, text=True, timeout=30,
         )
         if result.returncode == 0:
-            summary = result.stdout.strip()[:20]
+            summary = result.stdout.strip()
+            if len(summary) > 30:
+                summary = summary[:29] + "..."
             if summary:
                 return summary
     except Exception:
         pass
 
-    return last_msg[:20]
+    if len(last_msg) > 30:
+        return last_msg[:29] + "..."
+    return last_msg
 
 
 def extract_recent_user_messages(transcript_path: str, n: int = 3) -> list:
@@ -134,9 +141,13 @@ def extract_recent_user_messages(transcript_path: str, n: int = 3) -> list:
                     continue
                 try:
                     msg  = json.loads(line)
-                    if msg.get("role") not in ("human", "user"):
+                    # Support both flat format (role at top level) and
+                    # nested format used by Claude Code (role inside "message")
+                    nested = msg.get("message", {})
+                    role   = msg.get("role") or nested.get("role", "")
+                    if role not in ("human", "user"):
                         continue
-                    content = msg.get("content", "")
+                    content = msg.get("content") if msg.get("content") is not None else nested.get("content", "")
                     text    = ""
                     if isinstance(content, list):
                         for block in content:
@@ -169,7 +180,7 @@ def get_ticket(cwd: str) -> str:
             ["git", "-C", cwd, "branch", "--show-current"],
             capture_output=True, text=True, timeout=5,
         )
-        match = re.search(r"([A-Z]+-[0-9]+)", result.stdout.strip())
+        match = re.search(r"([A-Z][A-Z0-9]+-[0-9]+)", result.stdout.strip())
         if match:
             return match.group(1)
     except Exception:

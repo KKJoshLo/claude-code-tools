@@ -30,7 +30,7 @@ get_ticket_from_branch() {
   local branch
   branch=$(git branch --show-current 2>/dev/null || true)
   # Match PROJECT-NUMBER pattern anywhere in the branch name
-  if [[ "$branch" =~ ([A-Z]+-[0-9]+) ]]; then
+  if [[ "$branch" =~ ([A-Z][A-Z0-9]+-[0-9]+) ]]; then
     printf '%s' "${BASH_REMATCH[1]}"
   fi
 }

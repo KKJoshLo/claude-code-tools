@@ -16,14 +16,14 @@ echo ""
 
 mkdir -p "${TRACKER_DIR}/scripts"
 
-cp "${SCRIPT_DIR}/scripts/claude-jira"            "${TRACKER_DIR}/scripts/claude-jira"
-cp "${SCRIPT_DIR}/scripts/stop-hook.py"           "${TRACKER_DIR}/scripts/stop-hook.py"
-cp "${SCRIPT_DIR}/scripts/prompt-submit-hook.py"  "${TRACKER_DIR}/scripts/prompt-submit-hook.py"
-cp "${SCRIPT_DIR}/scripts/log-worklog.py"         "${TRACKER_DIR}/scripts/log-worklog.py"
+ln -sf "${SCRIPT_DIR}/scripts/claude-jira"            "${TRACKER_DIR}/scripts/claude-jira"
+ln -sf "${SCRIPT_DIR}/scripts/stop-hook.py"           "${TRACKER_DIR}/scripts/stop-hook.py"
+ln -sf "${SCRIPT_DIR}/scripts/prompt-submit-hook.py"  "${TRACKER_DIR}/scripts/prompt-submit-hook.py"
+ln -sf "${SCRIPT_DIR}/scripts/log-worklog.py"         "${TRACKER_DIR}/scripts/log-worklog.py"
 
-chmod +x "${TRACKER_DIR}/scripts/claude-jira"
-chmod +x "${TRACKER_DIR}/scripts/stop-hook.py"
-chmod +x "${TRACKER_DIR}/scripts/prompt-submit-hook.py"
+chmod +x "${SCRIPT_DIR}/scripts/claude-jira"
+chmod +x "${SCRIPT_DIR}/scripts/stop-hook.py"
+chmod +x "${SCRIPT_DIR}/scripts/prompt-submit-hook.py"
 
 # ── Gather Jira credentials ───────────────────────────────────────────────────
 
