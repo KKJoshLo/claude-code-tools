@@ -47,7 +47,7 @@ echo "✓ Config saved to ${TRACKER_DIR}/config.conf"
 # ── Register Stop hook in Claude Code settings ────────────────────────────────
 
 python3 << PYEOF
-import json, os, sys
+import json, os, sys, shutil
 
 settings_file = os.path.expanduser("~/.claude/settings.json")
 hook_script   = os.path.expanduser("~/.claude/jira-tracker/scripts/stop-hook.py")
@@ -55,7 +55,12 @@ hook_script   = os.path.expanduser("~/.claude/jira-tracker/scripts/stop-hook.py"
 try:
     with open(settings_file) as f:
         settings = json.load(f)
-except (FileNotFoundError, json.JSONDecodeError):
+except FileNotFoundError:
+    settings = {}
+except json.JSONDecodeError:
+    backup = settings_file + ".bak"
+    shutil.copy2(settings_file, backup)
+    print(f"⚠  settings.json had invalid JSON — backed up to {backup}")
     settings = {}
 
 hooks = settings.setdefault("hooks", {})
