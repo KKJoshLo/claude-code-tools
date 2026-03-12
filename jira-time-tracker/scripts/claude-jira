@@ -1,0 +1,105 @@
+#!/usr/bin/env bash
+# claude-jira — Claude Code wrapper that auto-logs session time to Jira worklog
+#
+# Usage:
+#   claude-jira [claude options]
+#
+# Ticket detection (in order):
+#   1. Regex match on current git branch (e.g. feature/B2CBE-2083-some-title → B2CBE-2083)
+#   2. Interactive prompt if no branch match found
+#
+# On session exit, logs elapsed time + conversation summary to Jira.
+
+set -euo pipefail
+
+TRACKER_DIR="${HOME}/.claude/jira-tracker"
+CONFIG_FILE="${TRACKER_DIR}/config.conf"
+SESSION_FILE="${TRACKER_DIR}/.current_session"
+SCRIPTS_DIR="${TRACKER_DIR}/scripts"
+
+# ── Preflight ─────────────────────────────────────────────────────────────────
+
+if [[ ! -f "$CONFIG_FILE" ]]; then
+  echo "Error: Jira tracker not configured. Run setup.sh first." >&2
+  exit 1
+fi
+
+# ── Ticket detection ──────────────────────────────────────────────────────────
+
+get_ticket_from_branch() {
+  local branch
+  branch=$(git branch --show-current 2>/dev/null || true)
+  # Match PROJECT-NUMBER pattern anywhere in the branch name
+  if [[ "$branch" =~ ([A-Z]+-[0-9]+) ]]; then
+    printf '%s' "${BASH_REMATCH[1]}"
+  fi
+}
+
+TICKET=$(get_ticket_from_branch)
+
+if [[ -z "$TICKET" ]]; then
+  echo "No Jira ticket found in current git branch."
+  read -rp "Enter Jira ticket ID (e.g., B2CBE-2083) or press Enter to skip: " TICKET
+  if [[ -z "$TICKET" ]]; then
+    echo "Skipping Jira time tracking."
+    exec claude "$@"
+  fi
+fi
+
+# ── Session start ─────────────────────────────────────────────────────────────
+
+START_EPOCH=$(date +%s)
+START_JIRA=$(date -u '+%Y-%m-%dT%H:%M:%S.000+0000')
+
+mkdir -p "$TRACKER_DIR"
+printf '{"ticket":"%s","start_epoch":%s,"start_jira":"%s","description":""}\n' \
+  "$TICKET" "$START_EPOCH" "$START_JIRA" > "$SESSION_FILE"
+
+echo "⏱  Tracking time → $TICKET"
+
+# ── Cleanup (runs on EXIT) ────────────────────────────────────────────────────
+
+cleanup() {
+  local exit_epoch duration description
+
+  exit_epoch=$(date +%s)
+  duration=$(( exit_epoch - START_EPOCH ))
+
+  # Skip sessions shorter than 30 seconds
+  if (( duration < 30 )); then
+    rm -f "$SESSION_FILE" 2>/dev/null || true
+    return
+  fi
+
+  # Read description captured by the Stop hook
+  description=""
+  if [[ -f "$SESSION_FILE" ]]; then
+    description=$(python3 -c "
+import json, sys
+try:
+    with open(sys.argv[1]) as f:
+        d = json.load(f)
+    print(d.get('description', '').strip(), end='')
+except Exception:
+    pass
+" "$SESSION_FILE" 2>/dev/null || true)
+  fi
+
+  rm -f "$SESSION_FILE" 2>/dev/null || true
+
+  [[ -z "$description" ]] && description="Claude Code session"
+
+  echo ""
+  JIRA_TICKET="$TICKET" \
+  JIRA_DURATION="$duration" \
+  JIRA_STARTED="$START_JIRA" \
+  JIRA_DESCRIPTION="$description" \
+  python3 "${SCRIPTS_DIR}/log-worklog.py"
+}
+
+trap cleanup EXIT
+
+# ── Launch Claude Code ────────────────────────────────────────────────────────
+
+# Don't use `exec` — we need the EXIT trap to fire after claude exits
+claude "$@" || true
