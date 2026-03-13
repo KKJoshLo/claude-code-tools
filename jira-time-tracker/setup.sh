@@ -52,13 +52,19 @@ import json, os, sys, shutil
 settings_file = os.path.expanduser("~/.claude/settings.json")
 hook_script   = os.path.expanduser("~/.claude/jira-tracker/scripts/stop-hook.py")
 
+from datetime import datetime
+
+timestamp = datetime.now().strftime("%Y%m%d%H%M")
+backup = settings_file + ".bak." + timestamp
+
 try:
     with open(settings_file) as f:
         settings = json.load(f)
+    shutil.copy2(settings_file, backup)
+    print(f"✓ Backed up settings to {backup}")
 except FileNotFoundError:
     settings = {}
 except json.JSONDecodeError:
-    backup = settings_file + ".bak"
     shutil.copy2(settings_file, backup)
     print(f"⚠  settings.json had invalid JSON — backed up to {backup}")
     settings = {}

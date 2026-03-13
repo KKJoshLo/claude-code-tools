@@ -14,7 +14,7 @@ echo ""
 
 if [[ -f "$SETTINGS_FILE" ]]; then
   python3 << PYEOF
-import json, os, shutil
+import json, os
 
 settings_file = "${SETTINGS_FILE}"
 marker_commands = [
@@ -28,10 +28,6 @@ try:
 except Exception as e:
     print(f"⚠  Could not read settings.json: {e}")
     raise SystemExit(1)
-
-# Back up before modifying
-backup = settings_file + ".bak"
-shutil.copy2(settings_file, backup)
 
 hooks = settings.get("hooks", {})
 changed = False
@@ -54,9 +50,8 @@ for event in list(hooks.keys()):
 if changed:
     with open(settings_file, "w") as f:
         json.dump(settings, f, indent=2)
-    print(f"✓ Hooks removed from settings.json (backup: {backup})")
+    print("✓ Hooks removed from settings.json")
 else:
-    os.remove(backup)
     print("✓ No tracker hooks found in settings.json")
 PYEOF
 else
@@ -106,5 +101,4 @@ done
 echo ""
 echo "=== Uninstall complete ==="
 echo ""
-echo "settings.json backup kept at: ${SETTINGS_FILE}.bak"
-echo "To restore: cp ${SETTINGS_FILE}.bak ${SETTINGS_FILE}"
+echo "Note: pre-install backups (settings.json.bak.*) were kept for your reference."
