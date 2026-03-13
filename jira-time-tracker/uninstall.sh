@@ -14,7 +14,8 @@ echo ""
 
 if [[ -f "$SETTINGS_FILE" ]]; then
   python3 << PYEOF
-import json, os
+import json, os, shutil
+from datetime import datetime
 
 settings_file = "${SETTINGS_FILE}"
 marker_commands = [
@@ -48,6 +49,10 @@ for event in list(hooks.keys()):
         del hooks[event]
 
 if changed:
+    timestamp = datetime.now().strftime("%Y%m%d%H%M")
+    backup = settings_file + ".bak.uninstall." + timestamp
+    shutil.copy2(settings_file, backup)
+    print(f"✓ Backed up settings.json to {backup}")
     with open(settings_file, "w") as f:
         json.dump(settings, f, indent=2)
     print("✓ Hooks removed from settings.json")
@@ -60,8 +65,12 @@ fi
 
 # ── Remove alias from shell rc ────────────────────────────────────────────────
 
+RC_TIMESTAMP=$(date +%Y%m%d%H%M)
 for RC in "${HOME}/.zshrc" "${HOME}/.bashrc"; do
   if [[ -f "$RC" ]] && grep -q "jira-time-tracker" "$RC" 2>/dev/null; then
+    RC_BACKUP="${RC}.bak.uninstall.${RC_TIMESTAMP}"
+    cp "$RC" "$RC_BACKUP"
+    echo "✓ Backed up ${RC} to ${RC_BACKUP}"
     # Remove the two lines added by setup.sh
     TMP=$(mktemp)
     grep -v "jira-time-tracker" "$RC" | grep -v "alias claude='claude-jira'" > "$TMP"

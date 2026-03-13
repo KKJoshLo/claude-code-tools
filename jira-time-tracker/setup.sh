@@ -28,7 +28,7 @@ chmod +x "${SCRIPT_DIR}/scripts/prompt-submit-hook.py"
 # ── Gather Jira credentials ───────────────────────────────────────────────────
 
 echo "Jira credentials:"
-read -rp "  Base URL [https://kkday.atlassian.net]: " JIRA_URL
+read -rp "  Base URL (Enter for https://kkday.atlassian.net): " JIRA_URL
 JIRA_URL="${JIRA_URL:-https://kkday.atlassian.net}"
 
 read -rp "  Email: " JIRA_EMAIL
@@ -55,7 +55,7 @@ hook_script   = os.path.expanduser("~/.claude/jira-tracker/scripts/stop-hook.py"
 from datetime import datetime
 
 timestamp = datetime.now().strftime("%Y%m%d%H%M")
-backup = settings_file + ".bak." + timestamp
+backup = settings_file + ".bak.setup." + timestamp
 
 try:
     with open(settings_file) as f:
@@ -103,16 +103,36 @@ PYEOF
 # ── Install claude-jira command ───────────────────────────────────────────────
 
 INSTALLED_PATH=""
+TOOL_SOURCE="${TRACKER_DIR}/scripts/claude-jira"
+
+_install_symlink() {
+  local bin_path="$1"
+  if [[ -e "$bin_path" ]] || [[ -L "$bin_path" ]]; then
+    local existing_target
+    existing_target="$(readlink "$bin_path" 2>/dev/null || echo "")"
+    if [[ "$existing_target" == "$TOOL_SOURCE" ]]; then
+      ln -sf "$TOOL_SOURCE" "$bin_path"
+      INSTALLED_PATH="$bin_path"
+      return 0
+    else
+      echo "⚠  ${bin_path} already exists (→ ${existing_target:-non-symlink})"
+      echo "   Skipping symlink — please remove it manually first"
+      return 1
+    fi
+  else
+    ln -sf "$TOOL_SOURCE" "$bin_path"
+    INSTALLED_PATH="$bin_path"
+    return 0
+  fi
+}
 
 if [[ -d "/usr/local/bin" && -w "/usr/local/bin" ]]; then
-  ln -sf "${TRACKER_DIR}/scripts/claude-jira" "/usr/local/bin/claude-jira"
-  INSTALLED_PATH="/usr/local/bin/claude-jira"
+  _install_symlink "/usr/local/bin/claude-jira"
 else
   mkdir -p "${HOME}/.local/bin"
-  ln -sf "${TRACKER_DIR}/scripts/claude-jira" "${HOME}/.local/bin/claude-jira"
-  INSTALLED_PATH="${HOME}/.local/bin/claude-jira"
+  _install_symlink "${HOME}/.local/bin/claude-jira"
 
-  if ! echo ":${PATH}:" | grep -q ":${HOME}/.local/bin:"; then
+  if [[ -n "$INSTALLED_PATH" ]] && ! echo ":${PATH}:" | grep -q ":${HOME}/.local/bin:"; then
     echo ""
     echo "⚠  ~/.local/bin is not in your PATH."
     echo "   Add this line to your ~/.zshrc (or ~/.bashrc):"
@@ -123,7 +143,7 @@ else
   fi
 fi
 
-echo "✓ Installed: ${INSTALLED_PATH}"
+[[ -n "$INSTALLED_PATH" ]] && echo "✓ Installed: ${INSTALLED_PATH}"
 
 # ── Alias claude → claude-jira ────────────────────────────────────────────────
 
@@ -139,7 +159,16 @@ ALIAS_LINE="alias claude='claude-jira'  # jira-time-tracker"
 if [[ -n "$SHELL_RC" ]]; then
   if grep -q "jira-time-tracker" "$SHELL_RC" 2>/dev/null; then
     echo "✓ Shell alias already set in ${SHELL_RC}"
+  elif grep -qE "^alias claude=" "$SHELL_RC" 2>/dev/null; then
+    existing_alias=$(grep -E "^alias claude=" "$SHELL_RC" | head -1)
+    echo "⚠  Found existing alias in ${SHELL_RC}: ${existing_alias}"
+    echo "   Skipping alias addition — please add manually:"
+    echo "   ${ALIAS_LINE}"
   else
+    RC_TIMESTAMP=$(date +%Y%m%d%H%M)
+    RC_BACKUP="${SHELL_RC}.bak.setup.${RC_TIMESTAMP}"
+    cp "$SHELL_RC" "$RC_BACKUP"
+    echo "✓ Backed up ${SHELL_RC} to ${RC_BACKUP}"
     echo "" >> "$SHELL_RC"
     echo "# Auto-added by jira-time-tracker setup" >> "$SHELL_RC"
     echo "$ALIAS_LINE" >> "$SHELL_RC"
