@@ -69,7 +69,7 @@ def main():
     carry = pop_carry()
     total = duration + carry
 
-    description = generate_description(transcript_path, last_msg)
+    description = generate_description(last_msg)
 
     env = os.environ.copy()
     env.update({
@@ -85,24 +85,18 @@ def main():
     )
     if result.returncode == 0 and result.stdout:
         msg = result.stdout.strip()
-        print(msg)
+        print(msg, file=sys.stderr)  # stderr only — stdout would be injected into Claude's conversation
     elif result.returncode != 0 and result.stderr:
         print(result.stderr, end="", file=sys.stderr)
 
 
-def generate_description(transcript_path: str, last_msg: str) -> str:
-    """
-    Use claude -p to generate a ≤30-char Traditional Chinese summary.
-    If the last message is already ≤30 chars, use it directly (no API call).
-    """
-    messages = extract_recent_user_messages(transcript_path, n=3)
-    context  = "\n".join(messages) if messages else last_msg
+def generate_description(last_msg: str) -> str:
+    """Use claude -p to generate a ≤30-char Traditional Chinese worklog summary."""
+    context = last_msg[:100]
 
     prompt = (
-        "以下是一段工作對話，請用繁體中文在30字以內總結這輪工作的內容，"
-        "只回覆摘要文字，不要加引號或任何解釋。"
-        "務必控制在30字以內，如果內容較多無法精簡，可以用...結尾。\n\n"
-        f"{context}"
+        "請用30字以內的繁體中文總結以下工作內容，只輸出摘要文字，不要解釋或提問。\n\n"
+        f"工作內容：{context}"
     )
 
     try:
@@ -110,7 +104,8 @@ def generate_description(transcript_path: str, last_msg: str) -> str:
         env["JIRA_SUMMARIZING"] = "1"  # Prevent recursive hook triggering
         env.pop("CLAUDECODE", None)     # Allow nested claude -p call
         result = subprocess.run(
-            ["claude", "-p", prompt],
+            ["claude", "-p", "--model", "claude-haiku-4-5-20251001", "--tools", ""],
+            input=prompt,
             env=env, capture_output=True, text=True, timeout=30,
         )
         if result.returncode == 0:
@@ -119,8 +114,10 @@ def generate_description(transcript_path: str, last_msg: str) -> str:
                 summary = summary[:29] + "..."
             if summary:
                 return summary
-    except Exception:
-        pass
+        else:
+            print(f"[jira-tracker] claude -p failed (rc={result.returncode}): {result.stderr.strip()}", file=sys.stderr)
+    except Exception as e:
+        print(f"[jira-tracker] generate_description error: {e}", file=sys.stderr)
 
     if len(last_msg) > 30:
         return last_msg[:29] + "..."
