@@ -5,7 +5,7 @@ Reads parameters from environment variables:
   JIRA_TICKET      - Issue key (e.g., B2CBE-2083)
   JIRA_DURATION    - Time spent in seconds
   JIRA_STARTED     - Start time in Jira format (yyyy-MM-ddTHH:mm:ss.000+0000)
-  JIRA_DESCRIPTION - Worklog comment (will be truncated to 50 chars)
+  JIRA_DESCRIPTION - Worklog comment (will be truncated to 100 chars)
 """
 
 import urllib.request
@@ -26,7 +26,7 @@ def load_config():
                     k, v = line.split("=", 1)
                     config[k.strip()] = v.strip().strip("\"'")
     except FileNotFoundError:
-        print("Error: Config not found. Run setup.sh first.", file=sys.stderr)
+        print("Error: Config not found. Run /jira-setup to configure.", file=sys.stderr)
         sys.exit(1)
     return config
 
@@ -35,7 +35,7 @@ def main():
     ticket      = os.environ.get("JIRA_TICKET", "").strip()
     raw_seconds = int(os.environ.get("JIRA_DURATION", "0"))
     started     = os.environ.get("JIRA_STARTED", "").strip()
-    description = os.environ.get("JIRA_DESCRIPTION", "Claude Code session").strip()[:50]
+    description = os.environ.get("JIRA_DESCRIPTION", "Claude Code session").strip()[:100]
 
     # Jira only displays minutes — round up, minimum 1 minute
     duration = max(60, math.ceil(raw_seconds / 60) * 60)
