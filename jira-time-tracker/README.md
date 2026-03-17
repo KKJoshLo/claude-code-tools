@@ -14,53 +14,58 @@
 
 ---
 
-## 安裝（一次性）
+## 安裝
 
-### 1. 取得 Jira API Token
+### 前置需求
 
-前往 [id.atlassian.com/manage-profile/security/api-tokens](https://id.atlassian.com/manage-profile/security/api-tokens)，點 **Create API token**，複製產生的 token。
+- macOS
+- [Claude Code](https://claude.ai/claude-code) 已安裝並登入
+- Python 3
+- Git
 
-### 2. 執行 setup.sh
+### 安裝步驟
 
-```bash
-git clone <this-repo>
-cd jira-time-tracker
-bash setup.sh
+**Step 1：加入 plugin 來源（每台機器只需一次）**
+
+在 Claude Code 中執行：
+```
+/plugin marketplace add your-org/jira-time-tracker
 ```
 
-過程中會詢問：
+**Step 2：安裝 plugin**
 
 ```
-Jira credentials:
-  Base URL [https://your-domain.atlassian.net]:   ← 輸入你的 Atlassian 網址
-  Email: your.email@example.com
-  API Token: <貼上剛才複製的 token>
+/plugin install jira-time-tracker@your-org
 ```
 
-### 3. 套用 alias
+**Step 3：重啟 Claude Code**
 
-```bash
-source ~/.zshrc
+完全關閉並重新開啟 Claude Code，讓 hooks 生效。
+
+**Step 4：設定 Jira 憑證**
+
+```
+/jira-setup
 ```
 
-完成。
+依照互動式提示輸入 Jira URL、email 及 API token。
+API token 可在此產生：https://id.atlassian.com/manage-profile/security/api-tokens
 
 ---
 
-## Installation Safety
+### 升級
 
-`setup.sh` 會修改以下檔案，並在修改前自動備份：
+```
+/plugin update jira-time-tracker@your-org
+```
 
-| 檔案 | 備份格式 | 說明 |
-|------|----------|------|
-| `~/.claude/settings.json` | `settings.json.bak.setup.<timestamp>` | 新增 Stop / UserPromptSubmit hooks |
-| `~/.zshrc` 或 `~/.bashrc` | `~/.zshrc.bak.setup.<timestamp>` | 新增 `alias claude='claude-jira'` |
-| `/usr/local/bin/claude-jira` | 無（若衝突則跳過） | 安裝指令 symlink |
+### 移除
 
-**衝突偵測：**
+```
+/plugin uninstall jira-time-tracker@your-org
+```
 
-- 若 shell RC 已有 **非本工具** 的 `alias claude=`，setup 不會覆蓋，僅印出警告
-- 若 `/usr/local/bin/claude-jira` 已指向其他工具，setup 不會覆蓋，僅印出警告
+設定檔 `~/.claude/jira-tracker/config.conf` 不會被自動刪除，需手動移除。
 
 ---
 
@@ -100,78 +105,7 @@ JIRA_EMAIL="your.email@example.com"
 JIRA_API_TOKEN="your-api-token"
 ```
 
-檔案權限為 `600`（僅擁有者可讀），直接編輯即可更新設定，無需重新執行 setup。
-
----
-
-## Uninstalling
-
-執行 uninstall.sh 可完整移除所有安裝內容：
-
-```bash
-bash uninstall.sh
-source ~/.zshrc   # 套用 alias 移除
-```
-
-移除項目：
-- `~/.claude/settings.json` 中的 Stop / UserPromptSubmit hooks
-- `~/.zshrc` / `~/.bashrc` 中的 alias 設定
-- `/usr/local/bin/claude-jira` 或 `~/.local/bin/claude-jira` symlink
-- `~/.claude/jira-tracker/` 目錄
-
-uninstall 前同樣會備份修改的檔案。
-
----
-
-## Backup & Recovery
-
-### 備份位置
-
-| 動作 | 備份檔案 |
-|------|----------|
-| setup | `~/.claude/settings.json.bak.setup.<timestamp>` |
-| setup | `~/.zshrc.bak.setup.<timestamp>` |
-| uninstall | `~/.claude/settings.json.bak.uninstall.<timestamp>` |
-| uninstall | `~/.zshrc.bak.uninstall.<timestamp>` |
-
-### 還原方式
-
-```bash
-# 還原 settings.json（以 setup 備份為例）
-cp ~/.claude/settings.json.bak.setup.202501010000 ~/.claude/settings.json
-
-# 還原 shell RC
-cp ~/.zshrc.bak.setup.202501010000 ~/.zshrc
-source ~/.zshrc
-```
-
-備份檔案不會自動刪除，可手動清除。
-
----
-
-## 前置需求
-
-- macOS
-- [Claude Code](https://claude.ai/claude-code) 已安裝並登入（`claude.ai` 訂閱帳號）
-- Python 3（macOS 內建）
-- Git
-
----
-
-## 檔案說明
-
-```
-setup.sh                       一次性安裝腳本
-uninstall.sh                   移除腳本
-scripts/
-  claude-jira                  主指令（setup 後取代 claude）
-  prompt-submit-hook.py        每次送出訊息時，記錄開始時間
-  stop-hook.py                 每次 AI 回覆後，生成摘要並寫 Jira worklog
-  log-worklog.py               呼叫 Jira REST API
-config.example                 設定檔範本
-```
-
-安裝後，設定與 scripts 會複製到 `~/.claude/jira-tracker/`，hooks 會自動寫入 `~/.claude/settings.json`。
+檔案權限為 `600`（僅擁有者可讀），直接編輯即可更新設定，無需重新執行設定流程。
 
 ---
 
@@ -200,10 +134,8 @@ config.example                 設定檔範本
 症狀：`claude` 執行後完全沒有 worklog 活動
 
 解法：
-1. 確認使用的是 `claude-jira` 而非原始 `claude`（執行 `which claude` 確認）
-2. 確認 `source ~/.zshrc` 已執行
-3. 確認 `~/.claude/settings.json` 中有 Stop 和 UserPromptSubmit hooks：
+1. 確認 `~/.claude/settings.json` 中有 Stop 和 UserPromptSubmit hooks：
    ```bash
    cat ~/.claude/settings.json | python3 -m json.tool | grep -A5 '"hooks"'
    ```
-4. 若 hooks 不在，重新執行 `bash setup.sh`
+2. 若 hooks 不在，重新執行 `/jira-setup`
