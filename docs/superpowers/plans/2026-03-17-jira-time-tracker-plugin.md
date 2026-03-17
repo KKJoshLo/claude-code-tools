@@ -2,9 +2,9 @@
 
 > **For agentic workers:** REQUIRED: Use superpowers:subagent-driven-development (if subagents available) or superpowers:executing-plans to implement this plan. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Convert `jira-time-tracker` from a shell-script install into a distributable Claude Code plugin installable via `/plugin install`.
+**Goal:** Convert `jira-time-tracker` from a shell-script install into a distributable Claude Code plugin installable via `/plugin install`, including a status bar showing the active Jira ticket ID.
 
-**Architecture:** Add the Claude Code plugin manifest structure (`plugin.json`, `hooks/hooks.json`, `commands/jira-setup.md`) to the existing repo, fix two broken path references in the Python scripts, and clean up now-obsolete setup/wrapper files. No logic changes to the core tracking flow.
+**Architecture:** Add the Claude Code plugin manifest structure (`plugin.json`, `hooks/hooks.json`, `commands/jira-setup.md`, `scripts/statusline.sh`) to the existing repo, fix two broken path references in the Python scripts, and clean up now-obsolete setup/wrapper files. No logic changes to the core tracking flow.
 
 **Tech Stack:** Python 3 (stdlib only), JSON, Claude Code plugin system
 
@@ -315,7 +315,96 @@ git commit -m "chore: remove setup.sh, uninstall.sh, claude-jira wrapper and .cl
 
 ## Chunk 2: Command and documentation
 
-### Task 6: Create /jira-setup command
+### Task 6: Create statusline script
+
+**Files:**
+- Create: `jira-time-tracker/scripts/statusline.sh`
+
+- [ ] **Step 1: Write a test that verifies the script outputs correct values**
+
+Create `jira-time-tracker/scripts/test_statusline.sh`:
+```bash
+#!/bin/bash
+set -e
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+STATUSLINE="$SCRIPT_DIR/statusline.sh"
+
+fail() { echo "FAIL: $1"; exit 1; }
+
+# Test 1: branch with ticket ID → shows ticket
+OUTPUT=$(echo '{"workspace":{"current_dir":"'"$SCRIPT_DIR"'"}}' | bash "$STATUSLINE")
+# We're in a git repo with a branch that may or may not have a ticket.
+# Just verify the script runs without error and outputs something non-empty.
+[ -n "$OUTPUT" ] || fail "output was empty"
+
+# Test 2: non-git directory → shows [no ticket]
+OUTPUT=$(echo '{"workspace":{"current_dir":"/tmp"}}' | bash "$STATUSLINE")
+[ "$OUTPUT" = "[no ticket]" ] || fail "expected '[no ticket]' for /tmp, got: $OUTPUT"
+
+# Test 3: empty cwd → shows [no ticket]
+OUTPUT=$(echo '{}' | bash "$STATUSLINE")
+[ "$OUTPUT" = "[no ticket]" ] || fail "expected '[no ticket]' for empty cwd, got: $OUTPUT"
+
+echo "OK"
+```
+
+- [ ] **Step 2: Run test — expect failure (script doesn't exist yet)**
+
+```bash
+bash jira-time-tracker/scripts/test_statusline.sh
+```
+Expected: `bash: .../statusline.sh: No such file or directory` or similar error
+
+- [ ] **Step 3: Create the statusline script**
+
+Write `jira-time-tracker/scripts/statusline.sh`:
+```bash
+#!/bin/bash
+# Claude Code status line: shows Jira ticket ID from current git branch.
+# Receives JSON via stdin with workspace.current_dir.
+# Outputs: "🎫 PROJECT-1234" or "[no ticket]"
+
+input=$(cat)
+cwd=$(echo "$input" | python3 -c "import sys,json; print(json.load(sys.stdin).get('workspace',{}).get('current_dir',''))" 2>/dev/null)
+
+if [ -z "$cwd" ]; then
+  echo "[no ticket]"
+  exit 0
+fi
+
+branch=$(git -C "$cwd" branch --show-current 2>/dev/null)
+ticket=$(echo "$branch" | grep -oE '[A-Z][A-Z0-9]+-[0-9]+' | head -1)
+
+if [ -n "$ticket" ]; then
+  echo "🎫 $ticket"
+else
+  echo "[no ticket]"
+fi
+```
+
+- [ ] **Step 4: Make it executable**
+
+```bash
+chmod +x jira-time-tracker/scripts/statusline.sh
+```
+
+- [ ] **Step 5: Run test — expect pass**
+
+```bash
+bash jira-time-tracker/scripts/test_statusline.sh
+```
+Expected: `OK`
+
+- [ ] **Step 6: Commit**
+
+```bash
+git add jira-time-tracker/scripts/statusline.sh jira-time-tracker/scripts/test_statusline.sh
+git commit -m "feat: add statusline.sh to display Jira ticket ID in Claude Code status bar"
+```
+
+---
+
+### Task 7: Create /jira-setup command
 
 **Files:**
 - Create: `jira-time-tracker/commands/jira-setup.md`
@@ -329,7 +418,7 @@ mkdir -p jira-time-tracker/commands
 Write `jira-time-tracker/commands/jira-setup.md`:
 ```markdown
 ---
-description: Interactive setup for jira-time-tracker — configures Jira credentials
+description: Interactive setup for jira-time-tracker — configures Jira credentials and status line
 ---
 
 Guide the user through setting up jira-time-tracker. Follow these steps exactly:
@@ -368,25 +457,45 @@ Guide the user through setting up jira-time-tracker. Follow these steps exactly:
      ```
    - Set permissions: `chmod 600 ~/.claude/jira-tracker/config.conf`
 
-6. **Confirm and explain**
+6. **Configure the status line**
+
+   Use the Bash tool to:
+   - Find the plugin's `statusline.sh` by locating it relative to this command file:
+     ```bash
+     PLUGIN_DIR="$(cd "$(dirname "$0")/.." && pwd)"
+     cp "$PLUGIN_DIR/scripts/statusline.sh" ~/.claude/jira-tracker/statusline.sh
+     chmod +x ~/.claude/jira-tracker/statusline.sh
+     ```
+   - Read `~/.claude/settings.json` (create it as `{}` if it doesn't exist)
+   - If `statusLine` already exists in `settings.json`, show its current value and ask: "A statusLine is already configured. Do you want to replace it with the Jira tracker status line? (yes/no)"
+   - If approved (or if `statusLine` was absent), add/replace:
+     ```json
+     "statusLine": {
+       "type": "command",
+       "command": "~/.claude/jira-tracker/statusline.sh"
+     }
+     ```
+   - Write the updated JSON back to `~/.claude/settings.json`
+
+7. **Confirm and explain**
 
    Tell the user:
    - Setup is complete.
-   - How it works: every time they finish a Claude Code conversation turn, the tracker automatically detects the Jira ticket ID from their current git branch (e.g. `feature/PROJECT-1234-description` → `PROJECT-1234`), generates a short summary, and logs the time to Jira.
-   - If a branch has no ticket ID, nothing is logged — it silently skips.
-   - They can re-run `/jira-setup` at any time to update their credentials.
+   - **Time tracking:** every turn, the tracker detects the Jira ticket ID from the git branch (e.g. `feature/PROJECT-1234-description` → `PROJECT-1234`), generates a short summary, and logs time to Jira. If no ticket is found, nothing is logged.
+   - **Status bar:** the current Jira ticket ID is shown in the Claude Code status bar (🎫 PROJECT-1234, or `[no ticket]` when not on a ticket branch). Restart Claude Code to activate.
+   - They can re-run `/jira-setup` at any time to update credentials or reconfigure.
 ```
 
 - [ ] **Step 2: Commit**
 
 ```bash
 git add jira-time-tracker/commands/jira-setup.md
-git commit -m "feat: add /jira-setup interactive configuration command"
+git commit -m "feat: add /jira-setup interactive configuration command with status line setup"
 ```
 
 ---
 
-### Task 7: Update root README.md
+### Task 8: Update root README.md
 
 **Files:**
 - Modify: `README.md`
@@ -428,7 +537,7 @@ git commit -m "docs: update root README to reflect plugin-based installation"
 
 ---
 
-### Task 8: Rewrite jira-time-tracker/README.md
+### Task 9: Rewrite jira-time-tracker/README.md
 
 **Files:**
 - Modify: `jira-time-tracker/README.md`
@@ -517,7 +626,7 @@ git commit -m "docs: rewrite installation section for plugin-based distribution"
 
 ---
 
-### Task 9: Smoke test the plugin locally
+### Task 10: Smoke test the plugin locally
 
 Verify the plugin installs and hooks fire before calling the work done.
 
@@ -566,11 +675,18 @@ cat ~/.claude/jira-tracker/config.conf
 ```
 Expected: file exists, permissions are `600`, contains the three keys.
 
-- [ ] **Step 5: Verify hooks fire on a test session**
+- [ ] **Step 5: Verify the status line script works directly**
+
+```bash
+echo '{"workspace":{"current_dir":"'"$(pwd)"'"}}' | bash ~/.claude/jira-tracker/statusline.sh
+```
+Expected: `🎫 B2CBE-2109` (or the ticket from the current branch), confirming the script was copied correctly and runs.
+
+- [ ] **Step 6: Verify hooks fire on a test session**
 
 Open a session on a branch with a ticket ID in the name (or create a test branch: `git checkout -b test/TEST-1-plugin-smoke-test`). Send a message and wait for the Stop hook to fire. Check stderr output for the `✓ Logged` confirmation or a Jira API error (both confirm the hook ran).
 
-- [ ] **Step 6: Commit the dev marketplace manifest**
+- [ ] **Step 7: Commit the dev marketplace manifest**
 
 ```bash
 git add jira-time-tracker/.claude-plugin/marketplace.json

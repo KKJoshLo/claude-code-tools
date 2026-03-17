@@ -24,7 +24,8 @@ jira-time-tracker/
 ├── scripts/
 │   ├── prompt-submit-hook.py    # UNCHANGED
 │   ├── stop-hook.py             # Modified: fix LOG_SCRIPT path (see Code Changes)
-│   └── log-worklog.py           # Modified: fix 50→100 char truncation + error message
+│   ├── log-worklog.py           # Modified: fix 50→100 char truncation + error message
+│   └── statusline.sh            # New: outputs Jira ticket ID to Claude Code status bar
 ├── commands/
 │   └── jira-setup.md            # New: /jira-setup interactive setup command
 ├── config.example               # Keep as reference
@@ -130,6 +131,38 @@ LOG_SCRIPT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "log-workl
 
 **`prompt-submit-hook.py` — no changes needed.** Branch detection already exists in `stop-hook.py`'s `get_ticket()` function and is unrelated to this hook.
 
+### 5. `scripts/statusline.sh` — Status Line Script
+
+A bash script that Claude Code calls to render the status bar. It receives a JSON payload via stdin containing `workspace.current_dir`, runs `git branch --show-current` in that directory, and outputs the Jira ticket ID on the first line of stdout.
+
+**Output format:**
+- Branch has ticket: `🎫 PROJECT-1234`
+- Branch has no ticket: `[no ticket]`
+- Not a git repo: `[no ticket]`
+
+**Script is copied** to `~/.claude/jira-tracker/statusline.sh` during `/jira-setup` so its path in `settings.json` is stable across plugin version upgrades.
+
+```bash
+#!/bin/bash
+# Read JSON input from stdin
+input=$(cat)
+cwd=$(echo "$input" | python3 -c "import sys,json; print(json.load(sys.stdin).get('workspace',{}).get('current_dir',''))" 2>/dev/null)
+
+if [ -z "$cwd" ]; then
+  echo "[no ticket]"
+  exit 0
+fi
+
+branch=$(git -C "$cwd" branch --show-current 2>/dev/null)
+ticket=$(echo "$branch" | grep -oE '[A-Z][A-Z0-9]+-[0-9]+' | head -1)
+
+if [ -n "$ticket" ]; then
+  echo "🎫 $ticket"
+else
+  echo "[no ticket]"
+fi
+```
+
 ### 4. `commands/jira-setup.md` — `/jira-setup` Command
 
 A slash command that instructs Claude to guide the user interactively through first-time (or re-)configuration:
@@ -147,7 +180,17 @@ A slash command that instructs Claude to guide the user interactively through fi
    JIRA_EMAIL="your.email@company.com"
    JIRA_API_TOKEN="your-api-token"
    ```
-6. Confirm setup is complete; show a brief explanation of how auto-tracking works
+6. Configure the Claude Code status line:
+   - Copy `scripts/statusline.sh` from the plugin install location to `~/.claude/jira-tracker/statusline.sh` and `chmod +x`
+   - Update `~/.claude/settings.json` to add:
+     ```json
+     "statusLine": {
+       "type": "command",
+       "command": "~/.claude/jira-tracker/statusline.sh"
+     }
+     ```
+   - If `statusLine` already exists in `settings.json`, ask the user before overwriting
+7. Confirm setup is complete; show a brief explanation of how auto-tracking and status line work
 
 **No credential validation** against the Jira API at setup time (keeps the command simple; errors surface naturally when the first worklog is attempted).
 
