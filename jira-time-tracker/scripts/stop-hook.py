@@ -21,8 +21,7 @@ if os.environ.get("JIRA_SUMMARIZING"):
 
 TURN_FILE   = os.path.expanduser("~/.claude/jira-tracker/.turn_start")
 CARRY_FILE  = os.path.expanduser("~/.claude/jira-tracker/.carry_duration")
-TRACKER_DIR = os.path.expanduser("~/.claude/jira-tracker")
-LOG_SCRIPT  = os.path.join(TRACKER_DIR, "scripts", "log-worklog.py")
+LOG_SCRIPT  = os.path.join(os.path.dirname(os.path.abspath(__file__)), "log-worklog.py")
 
 SHORT_MSG_THRESHOLD = 5
 
