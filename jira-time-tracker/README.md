@@ -7,7 +7,7 @@
 ## 運作方式
 
 - 每次你送出訊息，開始計時
-- Claude 回答完畢，呼叫 AI 生成 ≤30 字的繁體中文摘要，寫入 Jira worklog
+- Claude 回答完畢，呼叫 AI 生成 ≤100 字的繁體中文摘要，寫入 Jira worklog
 - 短回覆（≤5 字，如 `1`、`yes`、`ok`）不單獨寫 worklog，時間自動合併到下一輪
 - Jira ticket 從當前 git branch 自動偵測（如 `feature/B2CBE-2083-xxx` → `B2CBE-2083`）
 - 沒有 git branch 時，啟動時會詢問 ticket ID
