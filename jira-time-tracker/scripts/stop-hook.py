@@ -5,7 +5,7 @@ Claude Code Stop hook: logs each completed turn as a Jira worklog entry.
 Flow per turn:
   - Short user message (≤5 chars, e.g. "1", "yes") → accumulate into carry buffer
   - Substantial message → merge carry + current duration, call claude -p for
-    a ≤30-char Traditional Chinese summary, then log to Jira
+    a ≤100-char Traditional Chinese summary, then log to Jira
 """
 
 import json
@@ -91,11 +91,11 @@ def main():
 
 
 def generate_description(last_msg: str) -> str:
-    """Use claude -p to generate a ≤30-char Traditional Chinese worklog summary."""
-    context = last_msg[:100]
+    """Use claude -p to generate a ≤100-char Traditional Chinese worklog summary."""
+    context = last_msg[:500]
 
     prompt = (
-        "請用30字以內的繁體中文總結以下工作內容，只輸出摘要文字，不要解釋或提問。\n\n"
+        "請用100字以內的繁體中文總結以下工作內容，只輸出摘要文字，不要解釋或提問。\n\n"
         f"工作內容：{context}"
     )
 
@@ -110,8 +110,8 @@ def generate_description(last_msg: str) -> str:
         )
         if result.returncode == 0:
             summary = result.stdout.strip()
-            if len(summary) > 30:
-                summary = summary[:29] + "..."
+            if len(summary) > 100:
+                summary = summary[:99] + "..."
             if summary:
                 return summary
         else:
@@ -119,8 +119,8 @@ def generate_description(last_msg: str) -> str:
     except Exception as e:
         print(f"[jira-tracker] generate_description error: {e}", file=sys.stderr)
 
-    if len(last_msg) > 30:
-        return last_msg[:29] + "..."
+    if len(last_msg) > 100:
+        return last_msg[:99] + "..."
     return last_msg
 
 
