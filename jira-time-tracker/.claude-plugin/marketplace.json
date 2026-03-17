@@ -1,0 +1,14 @@
+{
+  "name": "jira-time-tracker-dev",
+  "description": "Dev marketplace for local testing",
+  "owner": { "name": "dev" },
+  "plugins": [
+    {
+      "name": "jira-time-tracker",
+      "description": "Automatically log work time to Jira from Claude Code sessions",
+      "version": "1.0.0",
+      "source": "./",
+      "author": { "name": "your-org" }
+    }
+  ]
+}
