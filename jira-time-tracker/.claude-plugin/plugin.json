@@ -1,0 +1,6 @@
+{
+  "name": "jira-time-tracker",
+  "version": "1.0.0",
+  "description": "Automatically log work time to Jira from Claude Code sessions",
+  "author": { "name": "your-org" }
+}
