@@ -134,8 +134,12 @@ JIRA_API_TOKEN="your-api-token"
 症狀：`claude` 執行後完全沒有 worklog 活動
 
 解法：
-1. 確認 `~/.claude/settings.json` 中有 Stop 和 UserPromptSubmit hooks：
-   ```bash
-   cat ~/.claude/settings.json | python3 -m json.tool | grep -A5 '"hooks"'
+1. 確認 plugin 已正確安裝：
    ```
-2. 若 hooks 不在，重新執行 `/jira-setup`
+   /plugin list
+   ```
+   輸出中應出現 `jira-time-tracker`。
+2. 若 plugin 不在清單中，重新執行安裝並重啟 Claude Code：
+   ```
+   /plugin install jira-time-tracker@your-org
+   ```

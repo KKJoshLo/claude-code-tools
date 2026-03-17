@@ -41,10 +41,9 @@ Guide the user through setting up jira-time-tracker. Follow these steps exactly:
 6. **Configure the status line**
 
    Use the Bash tool to:
-   - Find the plugin's `statusline.sh` by locating it relative to this command file:
+   - Copy the statusline script using `${CLAUDE_PLUGIN_ROOT}` (provided by the plugin system):
      ```bash
-     PLUGIN_DIR="$(cd "$(dirname "$0")/.." && pwd)"
-     cp "$PLUGIN_DIR/scripts/statusline.sh" ~/.claude/jira-tracker/statusline.sh
+     cp "${CLAUDE_PLUGIN_ROOT}/scripts/statusline.sh" ~/.claude/jira-tracker/statusline.sh
      chmod +x ~/.claude/jira-tracker/statusline.sh
      ```
    - Read `~/.claude/settings.json` (create it as `{}` if it doesn't exist)
