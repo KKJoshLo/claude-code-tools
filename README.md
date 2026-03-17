@@ -14,7 +14,7 @@
 - 每輪對話自動計時，結束後呼叫 AI 生成 ≤100 字繁體中文摘要寫入 Jira
 - 從 git branch 名稱自動偵測 Jira ticket ID（如 `feature/B2CBE-2083-xxx` → `B2CBE-2083`）
 - 短回覆（`ok`、`yes` 等）不單獨記錄，時間自動合併到下一輪
-- 一次性 `setup.sh` 安裝，裝完後照常用 `claude` 即可
+- 一鍵安裝：透過 Claude Code plugin 系統安裝，`/jira-setup` 完成設定即可使用
 
 **前置需求：** macOS、Claude Code、Python 3、Git
 
