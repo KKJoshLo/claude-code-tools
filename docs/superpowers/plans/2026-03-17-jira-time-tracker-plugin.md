@@ -331,11 +331,10 @@ STATUSLINE="$SCRIPT_DIR/statusline.sh"
 
 fail() { echo "FAIL: $1"; exit 1; }
 
-# Test 1: branch with ticket ID → shows ticket
+# Test 1: branch with ticket ID → shows ticket or [no ticket] (depends on current branch)
 OUTPUT=$(echo '{"workspace":{"current_dir":"'"$SCRIPT_DIR"'"}}' | bash "$STATUSLINE")
-# We're in a git repo with a branch that may or may not have a ticket.
-# Just verify the script runs without error and outputs something non-empty.
-[ -n "$OUTPUT" ] || fail "output was empty"
+# Output must be either "🎫 PROJECT-XXXX" or "[no ticket]" — nothing else is valid
+[[ "$OUTPUT" =~ ^\[no\ ticket\]$|^🎫\ [A-Z][A-Z0-9]+-[0-9]+ ]] || fail "unexpected format: $OUTPUT"
 
 # Test 2: non-git directory → shows [no ticket]
 OUTPUT=$(echo '{"workspace":{"current_dir":"/tmp"}}' | bash "$STATUSLINE")
@@ -486,7 +485,16 @@ Guide the user through setting up jira-time-tracker. Follow these steps exactly:
    - They can re-run `/jira-setup` at any time to update credentials or reconfigure.
 ```
 
-- [ ] **Step 2: Commit**
+- [ ] **Step 2: Verify the file contains expected content**
+
+```bash
+grep -q "Configure the status line" jira-time-tracker/commands/jira-setup.md && \
+grep -q "jira-tracker/statusline.sh" jira-time-tracker/commands/jira-setup.md && \
+echo "OK"
+```
+Expected: `OK`
+
+- [ ] **Step 3: Commit**
 
 ```bash
 git add jira-time-tracker/commands/jira-setup.md
