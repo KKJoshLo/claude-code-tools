@@ -178,7 +178,7 @@ uninstall.sh                   移除腳本
 scripts/
   claude-jira                  主指令（setup 後取代 claude）
   prompt-submit-hook.py        每次送出訊息時，記錄開始時間
-  stop-hook.py                 每次 AI 回覆後，生成摘要並寫 Jira worklog
+  stop-hook.py                 每次 AI 回覆後，截取 prompt 前 150 字並寫 Jira worklog
   log-worklog.py               呼叫 Jira REST API
   statusline.sh                Claude Code statusline 腳本，顯示追蹤中的票號
 config.example                 設定檔範本
