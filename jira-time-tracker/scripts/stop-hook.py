@@ -4,8 +4,8 @@ Claude Code Stop hook: logs each completed turn as a Jira worklog entry.
 
 Flow per turn:
   - Short user message (≤5 chars, e.g. "1", "yes") → accumulate into carry buffer
-  - Substantial message → merge carry + current duration, call claude -p for
-    a ≤100-char Traditional Chinese summary, then log to Jira
+  - Substantial message → merge carry + current duration, take first 150 chars of
+    user prompt as description, then log to Jira
 """
 
 import json
@@ -14,10 +14,6 @@ import os
 import re
 import time
 import subprocess
-
-# Guard against infinite recursion when this hook calls `claude -p`
-if os.environ.get("JIRA_SUMMARIZING"):
-    sys.exit(0)
 
 TURN_FILE   = os.path.expanduser("~/.claude/jira-tracker/.turn_start")
 CARRY_FILE  = os.path.expanduser("~/.claude/jira-tracker/.carry_duration")
@@ -69,7 +65,7 @@ def main():
     carry = pop_carry()
     total = duration + carry
 
-    description = generate_description(last_msg)
+    description = last_msg[:150]
 
     env = os.environ.copy()
     env.update({
@@ -88,40 +84,6 @@ def main():
         print(msg, file=sys.stderr)  # stderr only — stdout would be injected into Claude's conversation
     elif result.returncode != 0 and result.stderr:
         print(result.stderr, end="", file=sys.stderr)
-
-
-def generate_description(last_msg: str) -> str:
-    """Use claude -p to generate a ≤100-char Traditional Chinese worklog summary."""
-    context = last_msg[:500]
-
-    prompt = (
-        "請用100字以內的繁體中文總結以下工作內容，只輸出摘要文字，不要解釋或提問。\n\n"
-        f"工作內容：{context}"
-    )
-
-    try:
-        env = os.environ.copy()
-        env["JIRA_SUMMARIZING"] = "1"  # Prevent recursive hook triggering
-        env.pop("CLAUDECODE", None)     # Allow nested claude -p call
-        result = subprocess.run(
-            ["claude", "-p", "--model", "claude-haiku-4-5-20251001", "--tools", ""],
-            input=prompt,
-            env=env, capture_output=True, text=True, timeout=30,
-        )
-        if result.returncode == 0:
-            summary = result.stdout.strip()
-            if len(summary) > 100:
-                summary = summary[:99] + "..."
-            if summary:
-                return summary
-        else:
-            print(f"[jira-tracker] claude -p failed (rc={result.returncode}): {result.stderr.strip()}", file=sys.stderr)
-    except Exception as e:
-        print(f"[jira-tracker] generate_description error: {e}", file=sys.stderr)
-
-    if len(last_msg) > 100:
-        return last_msg[:99] + "..."
-    return last_msg
 
 
 def extract_recent_user_messages(transcript_path: str, n: int = 3) -> list:
@@ -155,7 +117,7 @@ def extract_recent_user_messages(transcript_path: str, n: int = 3) -> list:
                     elif isinstance(content, str):
                         text = content.strip()
                     if text:
-                        messages.append(text[:200])
+                        messages.append(text[:150])
                 except json.JSONDecodeError:
                     continue
     except Exception:
