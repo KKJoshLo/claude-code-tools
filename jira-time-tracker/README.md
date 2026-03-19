@@ -7,7 +7,7 @@
 ## 運作方式
 
 - 每次你送出訊息，開始計時
-- Claude 回答完畢，呼叫 AI 生成 ≤100 字的繁體中文摘要，寫入 Jira worklog
+- Claude 回答完畢，擷取使用者 prompt 的前 150 字，寫入 Jira worklog
 - 短回覆（≤5 字，如 `1`、`yes`、`ok`）不單獨寫 worklog，時間自動合併到下一輪
 - Jira ticket 從當前 git branch 自動偵測（如 `feature/B2CBE-2083-xxx` → `B2CBE-2083`）
 - 沒有 git branch 時，啟動時會詢問 ticket ID
@@ -32,7 +32,7 @@ bash setup.sh
 
 ```
 Jira credentials:
-  Base URL [https://your-domain.atlassian.net]:   ← 輸入你的 Atlassian 網址
+  Base URL [https://kkday.atlassian.net]:   ← 輸入你的 Atlassian 網址（直接 Enter 使用預設值）
   Email: your.email@example.com
   API Token: <貼上剛才複製的 token>
 ```
@@ -74,7 +74,19 @@ git checkout feature/B2CBE-2083-optimize-search
 claude                  # 自動追蹤時間到 B2CBE-2083
 ```
 
-每輪對話結束後，Jira worklog 會自動出現一筆記錄，描述由 AI 根據對話內容生成。
+每輪對話結束後，Jira worklog 會自動出現一筆記錄，描述為使用者 prompt 的前 150 字。
+
+---
+
+## Statusline
+
+安裝後，Claude Code 底部狀態列會顯示當前追蹤的票號：
+
+```
+⏱ B2CBE-2083
+```
+
+若未偵測到票號（如手動跳過追蹤），狀態列不顯示任何內容。
 
 ---
 
@@ -95,7 +107,7 @@ B2CBE-2083-hotfix                     ✓
 設定檔位於 `~/.claude/jira-tracker/config.conf`，格式如下：
 
 ```bash
-JIRA_BASE_URL="https://your-domain.atlassian.net"
+JIRA_BASE_URL="https://kkday.atlassian.net"
 JIRA_EMAIL="your.email@example.com"
 JIRA_API_TOKEN="your-api-token"
 ```
@@ -166,8 +178,9 @@ uninstall.sh                   移除腳本
 scripts/
   claude-jira                  主指令（setup 後取代 claude）
   prompt-submit-hook.py        每次送出訊息時，記錄開始時間
-  stop-hook.py                 每次 AI 回覆後，生成摘要並寫 Jira worklog
+  stop-hook.py                 每次 AI 回覆後，截取 prompt 前 150 字並寫 Jira worklog
   log-worklog.py               呼叫 Jira REST API
+  statusline.sh                Claude Code statusline 腳本，顯示追蹤中的票號
 config.example                 設定檔範本
 ```
 

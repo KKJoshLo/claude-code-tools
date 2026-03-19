@@ -20,10 +20,12 @@ ln -sf "${SCRIPT_DIR}/scripts/claude-jira"            "${TRACKER_DIR}/scripts/cl
 ln -sf "${SCRIPT_DIR}/scripts/stop-hook.py"           "${TRACKER_DIR}/scripts/stop-hook.py"
 ln -sf "${SCRIPT_DIR}/scripts/prompt-submit-hook.py"  "${TRACKER_DIR}/scripts/prompt-submit-hook.py"
 ln -sf "${SCRIPT_DIR}/scripts/log-worklog.py"         "${TRACKER_DIR}/scripts/log-worklog.py"
+ln -sf "${SCRIPT_DIR}/scripts/statusline.sh"          "${TRACKER_DIR}/scripts/statusline.sh"
 
 chmod +x "${SCRIPT_DIR}/scripts/claude-jira"
 chmod +x "${SCRIPT_DIR}/scripts/stop-hook.py"
 chmod +x "${SCRIPT_DIR}/scripts/prompt-submit-hook.py"
+chmod +x "${SCRIPT_DIR}/scripts/statusline.sh"
 
 # ── Gather Jira credentials ───────────────────────────────────────────────────
 
@@ -91,6 +93,18 @@ submit_hook = os.path.expanduser("~/.claude/jira-tracker/scripts/prompt-submit-h
 
 added_stop   = register_hook(hooks, "Stop",              stop_hook)
 added_submit = register_hook(hooks, "UserPromptSubmit",  submit_hook)
+
+# Register statusline
+statusline_script = os.path.expanduser("~/.claude/jira-tracker/scripts/statusline.sh")
+existing_statusline = settings.get("statusLine", {})
+if not existing_statusline:
+    settings["statusLine"] = {
+        "type": "command",
+        "command": statusline_script
+    }
+    print("✓ Statusline configured")
+else:
+    print("✓ Statusline already configured (skipped)")
 
 os.makedirs(os.path.dirname(settings_file), exist_ok=True)
 with open(settings_file, "w") as f:
