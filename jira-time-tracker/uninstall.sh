@@ -48,6 +48,14 @@ for event in list(hooks.keys()):
     if not hooks[event]:
         del hooks[event]
 
+# Remove statusLine if it points to our script
+statusline = settings.get("statusLine", {})
+tracker_prefix = os.path.expanduser("~/.claude/jira-tracker")
+if isinstance(statusline, dict) and tracker_prefix in statusline.get("command", ""):
+    del settings["statusLine"]
+    changed = True
+    print("✓ Statusline config removed from settings.json")
+
 if changed:
     timestamp = datetime.now().strftime("%Y%m%d%H%M")
     backup = settings_file + ".bak.uninstall." + timestamp
