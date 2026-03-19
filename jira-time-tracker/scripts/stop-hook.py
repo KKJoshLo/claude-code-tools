@@ -65,7 +65,7 @@ def main():
     carry = pop_carry()
     total = duration + carry
 
-    description = last_msg[:150]
+    description = "Logged by Claude Code AI"
 
     env = os.environ.copy()
     env.update({
