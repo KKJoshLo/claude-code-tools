@@ -45,6 +45,7 @@ if [[ -z "$TICKET" ]]; then
 fi
 
 echo "⏱  Tracking time → $TICKET"
+export JIRA_TICKET="$TICKET"
 
 # ── Launch Claude Code ────────────────────────────────────────────────────────
 
