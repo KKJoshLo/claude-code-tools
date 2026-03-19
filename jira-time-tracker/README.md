@@ -32,7 +32,7 @@ bash setup.sh
 
 ```
 Jira credentials:
-  Base URL [https://kkday.atlassian.net]:   ← 輸入你的 Atlassian 網址（直接 Enter 使用預設值）
+  Base URL (Enter for https://kkday.atlassian.net):   ← 輸入你的 Atlassian 網址（直接 Enter 使用預設值）
   Email: your.email@example.com
   API Token: <貼上剛才複製的 token>
 ```
@@ -53,7 +53,7 @@ source ~/.zshrc
 
 | 檔案 | 備份格式 | 說明 |
 |------|----------|------|
-| `~/.claude/settings.json` | `settings.json.bak.setup.<timestamp>` | 新增 Stop / UserPromptSubmit hooks |
+| `~/.claude/settings.json` | `~/.claude/settings.json.bak.setup.<timestamp>` | 新增 Stop / UserPromptSubmit hooks |
 | `~/.zshrc` 或 `~/.bashrc` | `~/.zshrc.bak.setup.<timestamp>` | 新增 `alias claude='claude-jira'` |
 | `/usr/local/bin/claude-jira` | 無（若衝突則跳過） | 安裝指令 symlink |
 
