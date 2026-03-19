@@ -29,13 +29,13 @@
 
 在 Claude Code 中執行：
 ```
-/plugin marketplace add your-org/jira-time-tracker
+/plugin marketplace add KKJoshLo/claude-code-tools
 ```
 
 **Step 2：安裝 plugin**
 
 ```
-/plugin install jira-time-tracker@your-org
+/plugin install jira-time-tracker@claude-code-tools
 ```
 
 **Step 3：重啟 Claude Code**
@@ -56,13 +56,13 @@ API token 可在此產生：https://id.atlassian.com/manage-profile/security/api
 ### 升級
 
 ```
-/plugin update jira-time-tracker@your-org
+/plugin update jira-time-tracker@claude-code-tools
 ```
 
 ### 移除
 
 ```
-/plugin uninstall jira-time-tracker@your-org
+/plugin uninstall jira-time-tracker@claude-code-tools
 ```
 
 設定檔 `~/.claude/jira-tracker/config.conf` 不會被自動刪除，需手動移除。
@@ -141,5 +141,5 @@ JIRA_API_TOKEN="your-api-token"
    輸出中應出現 `jira-time-tracker`。
 2. 若 plugin 不在清單中，重新執行安裝並重啟 Claude Code：
    ```
-   /plugin install jira-time-tracker@your-org
+   /plugin install jira-time-tracker@claude-code-tools
    ```
