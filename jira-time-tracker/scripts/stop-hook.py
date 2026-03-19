@@ -87,7 +87,7 @@ def main():
 
 
 def extract_recent_user_messages(transcript_path: str, n: int = 3) -> list:
-    """Return the last n user messages from the transcript (truncated to 200 chars each)."""
+    """Return the last n user messages from the transcript (truncated to 150 chars each)."""
     if not transcript_path or not os.path.exists(transcript_path):
         return []
 
